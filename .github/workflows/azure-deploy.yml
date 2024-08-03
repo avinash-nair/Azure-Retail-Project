@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   TF_VAR_azure_region: 'australiaeast'
   TF_VAR_resource_group_name: 'microservices-demo-rg'
@@ -16,14 +20,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3  # Update to the latest version
+      uses: actions/checkout@v3  # Updated to the latest version
 
-    - name: Set up Azure CLI
-      uses: azure/login@v1.4.7  # Update to the latest version
+    - name: Azure login
+      uses: azure/login@v1.4.7  # Updated to the latest version
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Install Terraform
