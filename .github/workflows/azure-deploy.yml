@@ -1,0 +1,81 @@
+name: Azure Infrastructure Setup
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VAR_azure_region: 'australiaeast'
+  TF_VAR_resource_group_name: 'microservices-demo-rg'
+  TF_VAR_acr_name: 'microservicesdemoregistry'
+
+jobs:
+  setup_infrastructure:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Azure CLI
+      run: |
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+    - name: Azure login
+      uses: azure/login@v1.4.7
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        federated-credential: true
+
+    - name: Install Terraform
+      run: |
+        sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
+        curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+        sudo apt-add-repository "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+        sudo apt-get update && sudo apt-get install terraform
+
+    - name: Check if Terraform directory exists
+      run: |
+        if [ ! -d "deployment/terraform/aks" ]; then
+          echo "Directory deployment/terraform/aks does not exist."
+          exit 1
+        fi
+
+    - name: Initialize Terraform
+      run: |
+        cd deployment/terraform/aks
+        terraform init
+
+    - name: Check and deploy ACR and AKS
+      run: |
+        cd deployment/terraform/aks
+
+        echo "Checking ACR existence"
+        acrExists=$(az acr check-name --name $TF_VAR_acr_name --query nameAvailable --output tsv)
+        if [ "$acrExists" == "false" ]; then
+          echo "ACR $TF_VAR_acr_name already exists. Skipping ACR creation."
+        else
+          echo "ACR $TF_VAR_acr_name does not exist. Proceeding with ACR creation."
+          terraform apply -auto-approve -target=azurerm_container_registry.acr
+        fi
+
+        echo "Checking AKS existence"
+        az aks show --name microservices-demo-aks --resource-group $TF_VAR_resource_group_name --query 'name' --output tsv
+        if [ $? -eq 0 ]; then
+          echo "AKS cluster microservices-demo-aks already exists. Skipping AKS creation."
+        else
+          echo "AKS cluster microservices-demo-aks does not exist. Proceeding with AKS creation."
+          terraform apply -auto-approve -target=azurerm_kubernetes_cluster.aks
+        fi
+
+    - name: Azure CLI logout
+      run: |
+        az logout
+        echo "Azure infrastructure setup completed."
