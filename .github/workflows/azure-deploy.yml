@@ -41,6 +41,13 @@ jobs:
         sudo apt-add-repository "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main"
         sudo apt-get update && sudo apt-get install terraform
 
+    - name: Check if Terraform directory exists
+      run: |
+        if [ ! -d "deployment/terraform/aks" ]; then
+          echo "Directory deployment/terraform/aks does not exist."
+          exit 1
+        fi
+
     - name: Initialize Terraform
       run: |
         cd deployment/terraform/aks
