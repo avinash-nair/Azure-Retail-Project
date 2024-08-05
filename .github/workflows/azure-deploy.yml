@@ -48,6 +48,10 @@ jobs:
           exit 1
         fi
 
+    - name: Create Resource Group
+      run: |
+        az group create --name $TF_VAR_resource_group_name --location $TF_VAR_azure_region
+
     - name: Initialize Terraform
       run: |
         cd deployment/terraform/aks
