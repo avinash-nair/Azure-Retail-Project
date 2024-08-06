@@ -32,7 +32,6 @@ jobs:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        federated-credential: true
 
     - name: Install Terraform
       run: |
@@ -48,36 +47,20 @@ jobs:
           exit 1
         fi
 
-    - name: Create Resource Group
-      run: |
-        az group create --name $TF_VAR_resource_group_name --location $TF_VAR_azure_region
-
     - name: Initialize Terraform
       run: |
         cd deployment/terraform/aks
         terraform init
 
-    - name: Check and deploy ACR and AKS
+    - name: Import Existing Resource Group
+      run: |
+        terraform import azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/microservices-demo-rg || true
+      working-directory: deployment/terraform/aks
+
+    - name: Apply Terraform Configuration
       run: |
         cd deployment/terraform/aks
-
-        echo "Checking ACR existence"
-        acrExists=$(az acr check-name --name $TF_VAR_acr_name --query nameAvailable --output tsv)
-        if [ "$acrExists" == "false" ]; then
-          echo "ACR $TF_VAR_acr_name already exists. Skipping ACR creation."
-        else
-          echo "ACR $TF_VAR_acr_name does not exist. Proceeding with ACR creation."
-          terraform apply -auto-approve -target=azurerm_container_registry.acr
-        fi
-
-        echo "Checking AKS existence"
-        az aks show --name microservices-demo-aks --resource-group $TF_VAR_resource_group_name --query 'name' --output tsv
-        if [ $? -eq 0 ]; then
-          echo "AKS cluster microservices-demo-aks already exists. Skipping AKS creation."
-        else
-          echo "AKS cluster microservices-demo-aks does not exist. Proceeding with AKS creation."
-          terraform apply -auto-approve -target=azurerm_kubernetes_cluster.aks
-        fi
+        terraform apply -auto-approve
 
     - name: Azure CLI logout
       run: |
