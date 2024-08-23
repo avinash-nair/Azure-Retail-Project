@@ -61,6 +61,11 @@ jobs:
           terraform import azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/microservices-demo-rg || true
         working-directory: deployment/terraform/aks
 
+      - name: Import Existing ACR
+        run: |
+          terraform import azurerm_container_registry.acr /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/microservices-demo-rg/providers/Microsoft.ContainerRegistry/registries/skilltechregistry || true
+        working-directory: deployment/terraform/aks
+
       - name: Apply Terraform Configuration
         run: |
           cd deployment/terraform/aks
